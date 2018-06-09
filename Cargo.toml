@@ -1,0 +1,19 @@
+[package]
+name = "licensed"
+version = "0.1.0"
+authors = ["Chris MacNaughton <chris@centaurisolutions.nl>"]
+
+[dependencies]
+chrono = "0.4.2"
+failure = "0.1.1"
+log = "0.4.2"
+ring = "0.12.1"
+untrusted = "0.5.1"
+
+[[bin]]
+name = "gen_license"
+path = "bin/gen_license.rs"
+
+[[bin]]
+name = "gen_keys"
+path = "bin/gen_keys.rs"
