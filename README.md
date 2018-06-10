@@ -1,5 +1,8 @@
 # Licensed
 
+[![Build Status](https://travis-ci.org/ChrisMacNaughton/licensed.svg?branch=master)](https://travis-ci.org/ChrisMacNaughton/licensed)
+[![Coverage Status](https://coveralls.io/repos/github/ChrisMacNaughton/licensed/badge.svg?branch=master)](https://coveralls.io/github/ChrisMacNaughton/licensed?branch=master)
+
 Licensed is a library for adding digitally signed licenses to
 your binary projects in a simple, extensible manner. In addition
 to providing library functions for usei n your code, it provides
