@@ -15,9 +15,41 @@ use ring::signature;
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn it_fails_with_missing_signature() {
+        let license = License::new(b"test").with_public_key(b"a").build();
+        match license {
+            Ok(_) => unreachable!(),
+            Err(e) => assert_eq!(e.downcast::<LicenseError>().unwrap(), LicenseError::MissingSignature)
+        }
+    }
+
+    #[test]
+    fn it_fails_with_missing_public_key() {
+        let license = License::new(b"test").build();
+        match license {
+            Ok(_) => unreachable!(),
+            Err(e) => assert_eq!(e.downcast::<LicenseError>().unwrap(), LicenseError::MissingPublicKey)
+        }
+    }
+
+    #[test]
+    fn it_fails_with_missing_text() {
+        let builder = LicenseBuilder::default().with_public_key(&[0x08]).with_signature(&[0x08]);
+        match builder.build() {
+            Ok(_) => unreachable!(),
+            Err(e) => assert_eq!(e.downcast::<LicenseError>().unwrap(), LicenseError::MissingLicenseText)
+        }
+    }
+
+    #[test]
+    fn it_validates_a_signature() {
+        let license = include_bytes!("../examples/license");
+        let public_key = include_bytes!("../examples/public.pks");
+
+        let license = License::new(license).with_public_key(public_key).build().unwrap();
+        assert!(license.valid());
     }
 }
 
@@ -26,7 +58,7 @@ mod tests {
 //
 // The custom derive for Fail derives an impl of both Fail and Display.
 // We don't do any other magic like creating new types.
-#[derive(Debug, Fail)]
+#[derive(Debug, Fail, PartialEq)]
 pub enum LicenseError {
     #[fail(display = "invalid public key")]
     InvalidPublicKey,
