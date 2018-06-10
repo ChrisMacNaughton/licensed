@@ -2,6 +2,10 @@
 name = "licensed"
 version = "0.1.0"
 authors = ["Chris MacNaughton <chris@centaurisolutions.nl>"]
+description = "licensed is a library to add signed licenses to your binary"
+docs = "https://docs.rs/licensed"
+homepage = "https://github.com/ChrisMacNaughton/licensed"
+license = "MIT/Apache-2.0"
 
 [dependencies]
 chrono = {version = "0.4.2", features = ['serde']}
