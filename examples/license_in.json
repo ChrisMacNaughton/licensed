@@ -1,4 +1,6 @@
 {
-    "features": {},
-    "expires": null,
+    "features": [
+        "hello"
+    ],
+    "expires": null
 }

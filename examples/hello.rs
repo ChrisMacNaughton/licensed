@@ -21,10 +21,14 @@ fn main() -> Result<(), licensed::Error> {
     let license = licensed::License::new(&license_file)
         .with_public_key(&PUBLIC_KEY)
         .build()?;
-    if license.valid() {
-        println!("Hello, world!");
-    } else {
+    if ! license.valid() {
         println!("The provided license is invalid");
+        exit(1);
+    }
+
+    println!("You're license is: {:?}", license);
+    if license.has_feature("hello") {
+        println!("Hello World!");
     }
     Ok(())
 }

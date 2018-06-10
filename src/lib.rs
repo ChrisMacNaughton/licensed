@@ -1,6 +1,9 @@
 extern crate chrono;
 #[macro_use] extern crate failure;
 #[macro_use] extern crate log;
+extern crate serde;
+#[macro_use] extern crate serde_derive;
+extern crate serde_json;
 extern crate ring;
 extern crate untrusted;
 
@@ -8,7 +11,7 @@ use std::str;
 
 use chrono::prelude::*;
 pub use failure::Error;
-use ring::{rand, signature};
+use ring::signature;
 
 #[cfg(test)]
 mod tests {
@@ -54,19 +57,19 @@ impl<'a> LicenseBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> Result<License, LicenseError> {
+    pub fn build(self) -> Result<License, Error> {
         let public_key = match self.public_key {
-            Some(s) => s,
-            None => return Err(LicenseError::MissingPublicKey),
-        };
+            Some(s) => Ok(s),
+            None => Err(LicenseError::MissingPublicKey),
+        }?;
         let signature = match self.signature {
-            Some(s) => s,
-            None => return Err(LicenseError::MissingSignature),
-        };
+            Some(s) => Ok(s),
+            None => Err(LicenseError::MissingSignature),
+        }?;
         let text = match self.text {
-            Some(s) => s,
-            None => return Err(LicenseError::MissingLicenseText),
-        };
+            Some(s) => Ok(s),
+            None => Err(LicenseError::MissingLicenseText),
+        }?;
         // Verify the signature of the message using the public key. Normally the
         // verifier of the message would parse the inputs to `signature::verify`
         // out of the protocol message(s) sent by the signer.
@@ -83,22 +86,55 @@ impl<'a> LicenseBuilder<'a> {
                 false
             }
         };
-        let mut license = License::default();
+        let mut license: License = serde_json::from_str(&text)?;
         license.signature_valid = valid_signature;
 
         Ok(license)
     }
 }
 
-#[derive(Default)]
+/// `License` is the primary struct through which to interact
+/// with `licensed`.
+/// ```
+/// # use std::process;
+/// static PUBLIC_KEY: &'static [u8] = include_bytes!("../examples/public.pks");
+/// // Generally, it is suggested to read in the license from a file at runtime
+/// let license_file: Vec<u8> = include_bytes!("../examples/license").to_vec();
+/// let license = licensed::License::new(&license_file)
+///     .with_public_key(&PUBLIC_KEY)
+///     .build().unwrap();
+/// if ! license.valid() {
+///     println!("The provided license is invalid");
+///     process::exit(1);
+/// }
+/// ```
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct License {
+    features: Vec<String>,
     expires: Option<DateTime<Utc>>,
+    #[serde(default="false_f")]
     signature_valid: bool,
 }
 
-impl License {
-    pub fn new<'a>(input: &'a [u8]) -> LicenseBuilder<'a> {
+#[inline(always)]
+fn false_f() -> bool { false }
 
+impl License {
+    /// Creates a new builder for the license, helping to construct and
+    /// validate the license.
+    /// ```
+    /// # use licensed::Error;
+    /// # static PUBLIC_KEY: &'static [u8] = include_bytes!("../examples/public.pks");
+    /// # fn main() { let _ = call(); }
+    /// # fn call() -> Result<(), Error> {
+    /// # let license_file: Vec<u8> = include_bytes!("../examples/license").to_vec();
+    /// let license = licensed::License::new(&license_file)
+    ///     .with_public_key(&PUBLIC_KEY)
+    ///     .build()?;
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn new<'a>(input: &'a [u8]) -> LicenseBuilder<'a> {
         let mut lb = LicenseBuilder::default();
         match input.iter().position(|&r| r == 0x00) {
             Some(split_index) => {
@@ -114,6 +150,20 @@ impl License {
         lb
     }
 
+    /// Is this license valid and non-expired?
+    /// ```
+    /// # use licensed::Error;
+    /// # static PUBLIC_KEY: &'static [u8] = include_bytes!("../examples/public.pks");
+    /// # fn main() { let _ = call(); }
+    /// # fn call() -> Result<(), Error> {
+    /// # let license_file: Vec<u8> = include_bytes!("../examples/license").to_vec();
+    /// # let license = licensed::License::new(&license_file)
+    /// #     .with_public_key(&PUBLIC_KEY)
+    /// #     .build()?;
+    /// assert!(license.valid());
+    /// #   Ok(())
+    /// # }
+    /// ```
     pub fn valid(&self) -> bool {
         if ! self.signature_valid {
             return false;
@@ -124,5 +174,24 @@ impl License {
             }
         }
         return true
+    }
+
+    /// Does this license have the specified feature?
+    /// ```
+    /// # use licensed::Error;
+    /// # static PUBLIC_KEY: &'static [u8] = include_bytes!("../examples/public.pks");
+    /// # fn main() { let _ = call(); }
+    /// # fn call() -> Result<(), Error> {
+    /// # let license_file: Vec<u8> = include_bytes!("../examples/license").to_vec();
+    /// # let license = licensed::License::new(&license_file)
+    /// #     .with_public_key(&PUBLIC_KEY)
+    /// #     .build()?;
+    /// assert!(license.has_feature("hello"));
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn has_feature<T: AsRef<str>>(&self, feature: T) -> bool {
+        let feat = feature.as_ref();
+        self.features.iter().position(|f| f == feat).is_some()
     }
 }
