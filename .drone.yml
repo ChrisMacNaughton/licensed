@@ -1,0 +1,16 @@
+matrix:
+  RUST_VERSION:
+    - stable
+    - beta
+    - nightly
+
+pipeline:
+  build:
+    image: liuchong/rustup:${RUST_VERSION}
+    commands:
+      - cargo fetch
+      - cargo build --test --release
+  test:
+    image: liuchong/rustup:${RUST_VERSION}
+    commands:
+      - cargo test --release
